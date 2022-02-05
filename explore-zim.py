@@ -48,53 +48,46 @@ def main(zim_path):
         article_id = prompt_for_article_id(graph, zim)
 
         if article_id:
-            print_article_details(articles_graph, article_id)
+            click.echo_via_pager(
+                format_article_details(articles_graph, article_id)
+            )
 
 
-def print_article_details(graph: nx.DiGraph, article_id: str):
+def format_article_details(graph: nx.DiGraph, article_id: str):
     article_data = graph.nodes.get(article_id)
 
-    if not article_data:
-        click.echo(
-            "{warning} Article is not in the link graph".format(
-                warning=click.style("Warning:", fg="red", bold=True)
-            ),
-            err=True
-        )
-        return
-        
-    click.echo()
-    click.secho(article_data.get("title"), fg="white")
-    click.secho(article_data.get("mimetype"), dim=True)
-    click.echo()
+    article_title = article_data.get("title")
+    article_mimetype = article_data.get("mimetype")
 
-    forward_links_list = [
+    yield click.style(f"{article_title}\n", fg="white")
+    yield click.style(f"{article_mimetype}\n", dim=True)
+    yield "\n"
+
+    forward_links_list = sorted(
         format_article_link(graph, node_id)
         for node_id in graph.successors(article_id)
         if node_id != ARTICLES_NODE and node_id != article_id
-    ]
+    )
 
-    backward_links_list = [
+    backward_links_list = sorted(
         format_article_link(graph, node_id)
         for node_id in graph.predecessors(article_id)
         if node_id != ARTICLES_NODE and node_id != article_id
-    ]
+    )
 
-    click.echo("Forward links:")
+    yield "Forward links:\n"
     for link_str in forward_links_list:
-        click.echo(f" * {link_str}")
+        yield f" * {link_str}\n"
     if not forward_links_list:
-        click.secho("(No forward links)", dim=True)
+        yield click.style("(No forward links)\n", dim=True)
 
-    click.echo()
+    yield "\n"
 
-    click.echo("Backward links:")
+    yield "Backward links:\n"
     for link_str in backward_links_list:
-        click.echo(f" * {link_str}")
+        yield f" * {link_str}\n"
     if not backward_links_list:
-        click.secho("(No backward links)", dim=True)
-
-    click.echo()
+        yield click.style("(No backward links)\n", dim=True)
 
 
 def format_article_link(graph: nx.DiGraph, node_id: str) -> str:
