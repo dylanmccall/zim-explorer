@@ -59,7 +59,7 @@ def format_article_details(graph: nx.DiGraph, article_id: str):
     article_title = article_data.get("title")
     article_mimetype = article_data.get("mimetype")
 
-    yield click.style(f"{article_title}\n", fg="white")
+    yield click.style(f"{article_title}\n", bold=True)
     yield click.style(f"{article_mimetype}\n", dim=True)
     yield "\n"
 
@@ -95,12 +95,12 @@ def format_article_link(graph: nx.DiGraph, node_id: str) -> str:
     node_title = node_data.get("title")
     if node_title:
         return "{id} {title}".format(
-            id=click.style(f"{node_id}"),
+            id=click.style(f"{node_id}", bold=True),
             title=click.style(f"({node_title})", dim=True)
         )
     else:
         return "{id}".format(
-            id=click.style(f"{node_id}")
+            id=click.style(f"{node_id}", bold=True)
         )
 
 
@@ -116,10 +116,10 @@ def prompt_for_article_id(graph: nx.DiGraph, zim: Archive) -> typing.Optional[st
 
     search_articles = list(search.getResults(0, 10))
 
-    click.echo("\nMatching articles:")
+    click.echo("\nSearch results:")
     for search_article_id in search_articles:
         click.echo(" * {article_id}".format(
-            article_id=click.style(f"{search_article_id}", fg="white")
+            article_id=click.style(f"{search_article_id}", bold=True)
         ))
     click.echo()
     
