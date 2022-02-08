@@ -105,25 +105,48 @@ def format_article_link(graph: nx.DiGraph, node_id: str) -> str:
 
 
 def prompt_for_article_id(graph: nx.DiGraph, zim: Archive) -> typing.Optional[str]:
-    article_id = click.prompt("Enter an article")
+    input_str = click.prompt("Enter an article")
 
-    if graph.has_node(article_id):
-        return article_id
+    if graph.has_node(input_str):
+        return input_str
 
-    searcher = Searcher(zim)
-    query = Query().set_query(article_id)
-    search = searcher.search(query)
-
-    search_articles = list(search.getResults(0, 10))
+    search_article_ids_list = list(
+        itertools.islice(
+            filter(
+                graph.has_node, zim_search_iter(zim, input_str)
+            ),
+            10
+        )
+    )
 
     click.echo("\nSearch results:")
-    for search_article_id in search_articles:
+    for article_id in search_article_ids_list:
         click.echo(" * {article_id}".format(
-            article_id=click.style(f"{search_article_id}", bold=True)
+            article_id=click.style(f"{article_id}", bold=True)
         ))
+    if not search_article_ids_list:
+        click.secho("(No search results)", dim=True)
     click.echo()
     
     return None
+
+
+def zim_search_iter(zim: Archive, query: str):
+    searcher = Searcher(zim)
+    query = Query().set_query(query)
+    search = searcher.search(query)
+
+    search_start = 0
+    search_count = 50
+
+    while True:
+        search_results = list(search.getResults(0, 10))
+
+        if search_results:
+            yield from search_results
+            search_start += search_count
+        else:
+            return
 
 
 def zim_entries_to_graph(zim_path: str, entry_ids: typing.Iterable[int]) -> nx.Graph:
