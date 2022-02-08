@@ -18,6 +18,8 @@ from multiprocessing import Pool
 ARTICLES_GRAPH_CHUNK_SIZE = 500
 
 ARTICLES_NODE = "_ARTICLES"
+CATEGORIES_NODE = "_CATEGORIES"
+SPECIAL_NODES = [ARTICLES_NODE, CATEGORIES_NODE]
 
 
 @click.command()
@@ -35,22 +37,43 @@ def main(zim_path):
             all_entry_id_groups
         )
         with click.progressbar(label="Reading articles", iterable=graphs, length=graphs_count) as graphs_progress:
-            graph = nx.compose_all(graphs_progress)
+            full_graph = nx.compose_all(graphs_progress)
 
-    articles_graph = graph.subgraph(
-        graph.successors(ARTICLES_NODE)
+    articles_graph = nx.subgraph_view(
+        full_graph,
+        filter_node=lambda node: full_graph.has_edge(ARTICLES_NODE, node)
+    )
+
+    categories_graph = nx.subgraph_view(
+        full_graph,
+        # There must be a path from _CATEGORIES -> Category -> Article
+        filter_node=lambda node: has_path_within_length(full_graph, CATEGORIES_NODE, node, 3)
     )
 
     while True:
         click.echo("Graph contains {count} articles".format(
             count=click.style(f"{articles_graph.order()}", bold=True)
         ))
+        click.echo("{count} articles are directly related to categories".format(
+            count=click.style(f"{categories_graph.order()}", bold=True)
+        ))
+
         article_id = prompt_for_article_id(graph, zim)
 
         if article_id:
             click.echo_via_pager(
                 format_article_details(articles_graph, article_id)
             )
+
+def has_path_within_length(graph: nx.DiGraph, source: typing.Any, target: typing.Any, limit: int) -> bool:
+    try:
+        shortest_path = nx.shortest_path(graph, source, target)
+    except nx.NodeNotFound:
+        return False
+    except nx.NetworkXNoPath:
+        return False
+    else:
+        return len(shortest_path) <= limit
 
 
 def format_article_details(graph: nx.DiGraph, article_id: str):
@@ -66,13 +89,13 @@ def format_article_details(graph: nx.DiGraph, article_id: str):
     forward_links_list = sorted(
         format_article_link(graph, node_id)
         for node_id in graph.successors(article_id)
-        if node_id != ARTICLES_NODE and node_id != article_id
+        if node_id not in [*SPECIAL_NODES, article_id]
     )
 
     backward_links_list = sorted(
         format_article_link(graph, node_id)
         for node_id in graph.predecessors(article_id)
-        if node_id != ARTICLES_NODE and node_id != article_id
+        if node_id not in [*SPECIAL_NODES, article_id]
     )
 
     yield "Forward links:\n"
@@ -154,6 +177,7 @@ def zim_entries_to_graph(zim_path: str, entry_ids: typing.Iterable[int]) -> nx.G
 
     graph = nx.DiGraph()
     graph.add_node(ARTICLES_NODE)
+    graph.add_node(CATEGORIES_NODE)
 
     for entry_id in filter(lambda x: x is not None, entry_ids):
         entry = zim._get_entry_by_id(entry_id)
@@ -175,6 +199,9 @@ def add_zim_entry_to_graph(graph: nx.DiGraph, entry: Entry):
 
     graph.add_node(entry.path, title=entry.title, mimetype=item.mimetype)
     graph.add_edge(ARTICLES_NODE, entry.path)
+
+    if entry.path.startswith("Category:"):
+        graph.add_edge(CATEGORIES_NODE, entry.path)
 
     article_bytes = item.content.tobytes()
     soup = bs4.BeautifulSoup(article_bytes, "lxml")
