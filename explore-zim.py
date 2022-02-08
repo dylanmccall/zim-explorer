@@ -24,7 +24,8 @@ SPECIAL_NODES = [ARTICLES_NODE, CATEGORIES_NODE]
 
 @click.command()
 @click.argument("zim_path", type=click.Path(readable=True))
-def main(zim_path):
+@click.option("-x", "--exclude-related", is_flag=True, help="Only show articles which are listed in category pages")
+def main(zim_path, exclude_related=False):
     zim = Archive(zim_path)
 
     all_entry_ids = range(zim.all_entry_count)
@@ -50,6 +51,11 @@ def main(zim_path):
         filter_node=lambda node: has_path_within_length(full_graph, CATEGORIES_NODE, node, 3)
     )
 
+    if exclude_related:
+        search_graph = categories_graph
+    else:
+        search_graph = articles_graph
+
     while True:
         click.echo("Graph contains {count} articles".format(
             count=click.style(f"{articles_graph.order()}", bold=True)
@@ -58,11 +64,11 @@ def main(zim_path):
             count=click.style(f"{categories_graph.order()}", bold=True)
         ))
 
-        article_id = prompt_for_article_id(graph, zim)
+        article_id = prompt_for_article_id(search_graph, zim)
 
         if article_id:
             click.echo_via_pager(
-                format_article_details(articles_graph, article_id)
+                format_article_details(search_graph, article_id)
             )
 
 def has_path_within_length(graph: nx.DiGraph, source: typing.Any, target: typing.Any, limit: int) -> bool:
