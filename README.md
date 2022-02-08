@@ -10,6 +10,14 @@ The provided Pipfile describes a Python environment in which this program can ru
     pipenv shell
     python3 explore-zim.py /path/to/a/zim/file.zim
 
+To generate a list of all articles in a zim file, grouped by category:
+
+    python3 explore-zim.py /path/to/a/zim/file.zim list > output.txt
+
+To explore a zim file interactively:
+
+    python3 explore-zim.py /path/to/a/zim/file.zim explore > output.txt
+
 ## Authors
 
 Dylan McCall <dylan@endlessos.org>
